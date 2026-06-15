@@ -25,9 +25,43 @@ def add_chunks(chunks, embeddings, doc_name: str):
     )  # store chunks and metadata
 
 
-def search_chunks(query_embedding, top_k=3):
+def search_chunks(
+    query_embedding,
+    top_k=3,
+    doc_name=None
+):
+    if doc_name:
+        print("FILTER:", doc_name)
+
+        return collection.query(
+            query_embeddings=[query_embedding],
+            n_results=top_k,
+            where={"doc": doc_name},
+            include=[
+                "documents",
+                "metadatas",
+                "distances"
+            ]
+        )
+
     return collection.query(
         query_embeddings=[query_embedding],
         n_results=top_k,
-        include=["documents", "metadatas"]
-    )  # retrieve relevant chunks
+        include=[
+            "documents",
+            "metadatas",
+            "distances"
+        ]
+    )
+
+def get_documents():
+    data = collection.get(
+        include=["metadatas"]
+    )
+
+    docs = set()
+
+    for meta in data["metadatas"]:
+        docs.add(meta["doc"])
+
+    return list(docs)

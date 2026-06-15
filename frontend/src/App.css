@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  font-family: Inter, sans-serif;
+  font-family: Arial, sans-serif;
   background: #0f172a;
   color: white;
 }
@@ -8,58 +8,48 @@ body {
 .container {
   max-width: 1000px;
   margin: auto;
-  padding: 40px 20px;
-}
-
-h1 {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.card {
-  background: #1e293b;
-  border-radius: 12px;
   padding: 20px;
+}
+
+.chat-container {
+  height: 500px;
+  overflow-y: auto;
+  margin-top: 20px;
   margin-bottom: 20px;
 }
 
-textarea {
-  width: 100%;
-  min-height: 120px;
-  border-radius: 8px;
-  border: 1px solid #334155;
+.user-message {
+  background: #2563eb;
   padding: 12px;
-  background: #0f172a;
-  color: white;
-  box-sizing: border-box;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  margin-left: 150px;
 }
 
-button {
-  background: #3b82f6;
-  color: white;
-  border: none;
-  padding: 12px 18px;
-  border-radius: 8px;
-  cursor: pointer;
+.assistant-message {
+  background: #1e293b;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  margin-right: 150px;
 }
 
-button:hover {
-  opacity: 0.9;
+.input-container {
+  display: flex;
+  gap: 10px;
 }
 
-.answer-box {
-  background: #111827;
-  border-left: 4px solid #3b82f6;
-  padding: 15px;
-  border-radius: 8px;
-  margin-top: 15px;
+.input-container textarea {
+  flex: 1;
+  resize: none;
 }
 
-.source-tag {
+.source-badge {
   display: inline-block;
-  background: #334155;
-  padding: 6px 10px;
+  background: #475569;
+  padding: 4px 10px;
   border-radius: 20px;
-  margin-right: 8px;
+  margin-right: 6px;
   margin-top: 10px;
+  font-size: 12px;
 }
