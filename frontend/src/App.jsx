@@ -1,153 +1,158 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import Sidebar from "./components/Sidebar";
+import ChatMessage from "./components/ChatMessage";
+import ChatInput from "./components/ChatInput";
+import "./App.css";
 
+/**
+ * App.jsx
+ * --------
+ * The top-level component. It holds the STATE (messages, documents,
+ * loading flags) and passes pieces of it down to the smaller
+ * components (Sidebar, ChatMessage, ChatInput) as props.
+ *
+ * Think of this file as the "brain" - it decides WHAT happens.
+ * The components decide HOW it looks.
+ */
 function App() {
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false); // track API request state
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState("");
-  const [response, setResponse] = useState("");
-  // load documents
+
+  // used to auto-scroll to the latest message
+  const bottomRef = useRef(null);
+
+  // load the document list once when the app first mounts
   useEffect(() => {
-    axios.get("http://localhost:8000/documents")
-      .then((res) => {
-        setDocuments(res.data.documents);
-      });
+    fetchDocuments();
   }, []);
 
-const sendMessage = async () => {
+  // auto-scroll whenever a new message is added
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
-  if (!message.trim()) return;
-
-  const userMessage = {
-    role: "user",
-    content: message
+  const fetchDocuments = () => {
+    axios.get("http://localhost:8000/documents").then((res) => {
+      setDocuments(res.data.documents);
+    });
   };
 
-  setMessages(prev => [...prev, userMessage]);
+  const handleUpload = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
 
-  setMessage("");
+    setUploading(true);
+    try {
+      const res = await axios.post("http://localhost:8000/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-  try {
+      // refresh the sidebar's document list so the new file shows up
+      fetchDocuments();
 
-    setLoading(true); // show loading indicator
+      // drop a small system-style note into the chat confirming the upload
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `indexed "${file.name}" — ${res.data.chunks} chunks ready to search.`,
+        },
+      ]);
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `upload failed for "${file.name}". check the backend logs.`,
+        },
+      ]);
+    } finally {
+      setUploading(false);
+    }
+  };
 
-    const res = await axios.post(
-      "http://localhost:8000/chat",
-      {
-        message,
-        document: selectedDocument || null
-      }
-    );
+  const handleSend = async (text) => {
+    const userMessage = { role: "user", content: text };
+    setMessages((prev) => [...prev, userMessage]);
+    setLoading(true);
 
-    const aiMessage = {
-      role: "assistant",
-      content: res.data.response,
-      sources: res.data.sources
-    };
+    try {
+      const res = await axios.post("http://localhost:8000/chat", {
+        message: text,
+        document: selectedDocument || null,
+      });
 
-    setMessages(prev => [...prev, aiMessage]);
-
-  } catch (err) {
-
-    console.error(err);
-
-  } finally {
-
-    setLoading(false); // hide loading indicator
-
-  }
-};
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: res.data.response,
+          sources: res.data.sources,
+        },
+      ]);
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "something went wrong — check the backend is running." },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div className="app-shell">
+      <Sidebar
+        documents={documents}
+        selectedDocument={selectedDocument}
+        onSelectDocument={setSelectedDocument}
+        onUpload={handleUpload}
+        uploading={uploading}
+      />
 
-      <h1>AI Docs Assistant</h1>
-
-      {/* document selector */}
-      <select
-        value={selectedDocument}
-        onChange={(e) => setSelectedDocument(e.target.value)}
-      >
-        <option value="">All Documents</option>
-
-        {documents.map((doc) => (
-          <option key={doc} value={doc}>
-            {doc}
-          </option>
-        ))}
-      </select>
-
-      <br /><br />
-
-      {/* question input */}
-
-        <div className="input-container">
-
-  <textarea
-    rows={3}
-    value={message}
-    onChange={(e) => setMessage(e.target.value)}
-    placeholder="Ask a question..."
-  />
-
-<button
-  onClick={sendMessage}
-  disabled={loading}
->
-  {loading ? "Thinking..." : "Send"}
-</button>
-
-</div>
-
-      <br />
-
-
-      <hr />
-
-<div className="chat-container">
-
-  {messages.map((msg, index) => (
-    <div
-      key={index}
-      className={
-        msg.role === "user"
-          ? "user-message"
-          : "assistant-message"
-      }
-    >
-      <strong>
-        {msg.role === "user" ? "You" : "AI"}
-      </strong>
-
-      <p>{msg.content}</p>
-
-      {msg.sources && (
-        <div>
-          {msg.sources.map(source => (
-            <span
-              key={source}
-              className="source-badge"
-            >
-              {source}
-            </span>
-          ))}
+      <main className="chat-pane">
+        <div className="chat-topbar">
+          <span className="chat-topbar-label">
+            {selectedDocument ? selectedDocument : "all documents"}
+          </span>
         </div>
-      )}
-    </div>
-  ))}
 
-  {/* Loading indicator */}
-  {loading && (
-    <div className="assistant-message">
-      <strong>AI</strong>
-      <p>Thinking...</p>
-    </div>
-  )}
+        <div className="chat-scroll">
+          <div className="chat-scroll-inner">
+            {messages.length === 0 && (
+              <div className="empty-state">
+                <p className="empty-state-title">no messages yet</p>
+                <p className="empty-state-sub">
+                  upload a pdf on the left, then ask a question about it.
+                </p>
+              </div>
+            )}
 
-</div>
+            {messages.map((msg, i) => (
+              <ChatMessage
+                key={i}
+                role={msg.role}
+                content={msg.content}
+                sources={msg.sources}
+              />
+            ))}
 
+            {loading && (
+              <ChatMessage role="assistant" content="thinking..." />
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <ChatInput onSend={handleSend} loading={loading} />
+      </main>
     </div>
   );
 }
