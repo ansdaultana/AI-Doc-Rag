@@ -98,7 +98,7 @@ def chat(request: ChatRequest):
                 "Answer only from the provided context. "
                 "Mention source documents at the beginning of the answer. "
                 "If the answer is not found, say so clearly."
-                "Use the previous context provided to find the answers"
+                
             )
         }
     ]
