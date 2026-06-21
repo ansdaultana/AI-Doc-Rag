@@ -1,5 +1,6 @@
 from embeddings import get_embedding  # question embedding
 from vector_store import search_chunks  # vector search
+from reranker import rerank  # cross-encoder re-ranking
 
 # Threshold meaning now matches cosine DISTANCE (0 = identical, 2 = opposite).
 # 0.85 was likely tuned assuming cosine distance already - this becomes
@@ -8,6 +9,10 @@ from vector_store import search_chunks  # vector search
 # been >0.85 even for great matches, silently nuking everything.
 DISTANCE_THRESHOLD = 0.85
 
+# How many chunks to keep after re-ranking - this is the FINAL number
+# of chunks that actually get sent to the LLM as context.
+FINAL_TOP_N = 4
+
 
 def retrieve_context(
     question: str,
@@ -15,6 +20,10 @@ def retrieve_context(
 ):
     query_embedding = get_embedding(question)  # embed question
 
+    # STAGE 1: fast vector search - cast a WIDE net here. We want more
+    # raw candidates than before (top_k is set in vector_store.py),
+    # because the re-ranker (stage 2) needs a decent pool to choose
+    # from. Picking too few here defeats the point of re-ranking.
     results = search_chunks(
         query_embedding,
         doc_name=doc_name
@@ -29,7 +38,7 @@ def retrieve_context(
     metadata = results["metadatas"][0]
     distances = results["distances"][0]
 
-    context_items = []
+    candidates = []
     kept = 0
     skipped = 0
 
@@ -44,17 +53,27 @@ def retrieve_context(
             continue
 
         kept += 1
-        context_items.append({
+        candidates.append({
             "source": meta.get("doc", "unknown"),
             "chunk": meta.get("chunk_index", -1),
             "content": chunks[i]
         })
+        
+        
+    print(f"[rag] stage 1 (vector search): kept {kept} / skipped {skipped} "
+          f"(threshold={DISTANCE_THRESHOLD})")
 
-    print(f"[rag] kept {kept} / skipped {skipped} (threshold={DISTANCE_THRESHOLD})")
-
-    if not context_items:
+    if not candidates:
         print("[rag] WARNING: every candidate was filtered out by the "
               "distance threshold. If 'raw hits returned' above was > 0, "
               "the bug is the threshold/metric, not retrieval itself.")
+        return []
 
-    return context_items
+    # STAGE 2: re-rank the surviving candidates with the cross-encoder,
+    # keeping only the FINAL_TOP_N most genuinely relevant ones.
+    final_context = rerank(question, candidates, top_n=FINAL_TOP_N)
+
+    print(f"[rag] stage 2 (re-ranking): {len(candidates)} candidates "
+          f"-> {len(final_context)} final chunks sent to the LLM")
+
+    return final_context

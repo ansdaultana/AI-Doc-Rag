@@ -44,7 +44,7 @@ function ChatInput({ onSend, loading }) {
         onClick={handleSend}
         disabled={loading || !draft.trim()}
       >
-        {loading ? <span className="spinner" /> : "send ↵"}
+        {loading ? <span className="spinner" /> : "Send ↵"}
       </button>
     </div>
   );

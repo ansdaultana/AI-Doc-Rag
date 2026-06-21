@@ -112,7 +112,6 @@ def chat(request: ChatRequest):
         ]
     )
 
-    print("retrieved context:", context_items)
 
     # save user message into THIS session's history
     history.append(

@@ -39,7 +39,10 @@ def add_chunks(chunks, embeddings, doc_name: str):
 
 def search_chunks(
     query_embedding,
-    top_k=8,  # was 3 - too small once you add a distance filter on top
+    top_k=15,  # widened from 8: the re-ranker (stage 2) needs a bigger
+               # pool of candidates to actually choose the best ones
+               # from - too narrow a net here defeats the point of
+               # adding re-ranking at all.
     doc_name=None
 ):
     if doc_name:
