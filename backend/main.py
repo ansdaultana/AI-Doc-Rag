@@ -1,12 +1,15 @@
-from fastapi import FastAPI, UploadFile, File  # FastAPI components
+from fastapi import FastAPI, UploadFile, File, Depends  # FastAPI components
 from fastapi.middleware.cors import CORSMiddleware  # CORS support
 from pydantic import BaseModel  # request schema
 from groq import Groq  # Groq client
 import os
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session  # type hint for a database session
 from ingestion import ingest_document  # document indexing
 from rag import retrieve_context  # retrieval pipeline
 from vector_store import get_documents
+from db.database import get_db  # gives us a database session per request
+from db.models import Message, RetrievedChunk  # our two database tables
 
 
 load_dotenv()
@@ -22,37 +25,21 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------------
-# SESSION-BASED MEMORY
+# DATABASE-BACKED MEMORY (replaces the old in-memory dictionaries)
 # ------------------------------------------------------------------
-# Before: conversation_history = []  <- ONE list shared by EVERY user.
-# That's like everyone in a building sharing a single notebook -
-# whatever you write, the next person's words land right after yours.
+# Before: conversation_histories = {}  <- a Python dictionary, living
+# in RAM. Worked fine, but a backend restart wiped everything.
 #
-# Now: a DICTIONARY where each session gets its own list.
-#   {
-#     "session-abc-123": [ {role: user, content: ...}, ... ],
-#     "session-xyz-789": [ {role: user, content: ...}, ... ],
-#   }
-# The frontend generates a random session_id once per browser tab and
-# sends it with every /chat request. We use that id as the "drawer
-# label" to find (or create) that session's own conversation list.
+# Now: every message is a ROW in the "messages" table in Postgres.
+# Instead of dict[session_id] -> list of messages, we now run a
+# database QUERY: "give me all messages WHERE session_id = ...".
+# Same idea, but it survives a restart because it's saved to disk by
+# Postgres, not held in the Python process's memory.
 # ------------------------------------------------------------------
-conversation_histories: dict[str, list[dict]] = {}
 
 # how many of the most recent messages to send back to the LLM as
 # context - keeps prompts from growing forever as a chat gets long
 MAX_HISTORY_MESSAGES = 6
-
-
-def get_history(session_id: str) -> list[dict]:
-    """
-    Returns the conversation list for this session_id, creating an
-    empty one first if this session hasn't been seen before.
-    This is the 'open the right drawer, or make a new one' step.
-    """
-    if session_id not in conversation_histories:
-        conversation_histories[session_id] = []
-    return conversation_histories[session_id]
 
 
 UPLOAD_DIR = "uploads"  # upload directory
@@ -93,12 +80,22 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 
 @app.post("/chat")
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, db: Session = Depends(get_db)):
 
-    # get THIS session's own conversation list (not the global one)
-    history = get_history(request.session_id)
+    # STAGE 1: load this session's recent history from the DATABASE
+    # instead of a dictionary. This is a real SQL query under the
+    # hood, roughly: "SELECT * FROM messages WHERE session_id = ...
+    # ORDER BY created_at ASC". db.query(Message) is SQLAlchemy's way
+    # of writing that without raw SQL text.
+    history_rows = (
+        db.query(Message)
+        .filter(Message.session_id == request.session_id)
+        .order_by(Message.id.asc())
+        .all()
+    )
 
-    # retrieve relevant chunks from vector DB
+    # retrieve relevant chunks from vector DB (unchanged - this part
+    # never touched the dictionaries, it's a separate pipeline)
     context_items = retrieve_context(
         request.message,
         request.document
@@ -113,13 +110,15 @@ def chat(request: ChatRequest):
     )
 
 
-    # save user message into THIS session's history
-    history.append(
-        {
-            "role": "user",
-            "content": request.message
-        }
+    # save the user's message as a new ROW in the database (instead
+    # of history.append(...) on a Python list)
+    user_message_row = Message(
+        session_id=request.session_id,
+        role="user",
+        content=request.message
     )
+    db.add(user_message_row)        # stage this row for saving
+    db.commit()                      # actually write it to Postgres
 
     # build prompt messages
     messages = [
@@ -134,9 +133,14 @@ def chat(request: ChatRequest):
         }
     ]
 
-    # add recent conversation memory FOR THIS SESSION ONLY
+    # add recent conversation memory FOR THIS SESSION ONLY.
+    # history_rows are database ROW objects, not plain dicts - we pull
+    # out just .role and .content, same defensive idea as before:
+    # Groq's API only wants "role" and "content" per message.
+    recent_history = history_rows[-MAX_HISTORY_MESSAGES:]
     messages.extend(
-        history[-MAX_HISTORY_MESSAGES:]
+        {"role": m.role, "content": m.content}
+        for m in recent_history
     )
 
     # add current context + question
@@ -161,22 +165,44 @@ Question:
 
     assistant_response = response.choices[0].message.content
 
-    # save assistant response into THIS session's history
-    history.append(
+    sources_list = list(
         {
-            "role": "assistant",
-            "content": assistant_response
+            item["source"]
+            for item in context_items
         }
     )
 
+    # save the assistant's response as a new ROW too, including
+    # sources (stored in the JSON column we defined in models.py)
+    assistant_message_row = Message(
+        session_id=request.session_id,
+        role="assistant",
+        content=assistant_response,
+        sources=sources_list
+    )
+    db.add(assistant_message_row)
+    db.commit()
+
+    # remember the latest retrieved context for THIS session in the
+    # database. Simplest approach: delete any old rows for this
+    # session first, then insert the new ones - so there's always
+    # exactly one "latest" set per session, not a growing pile.
+    db.query(RetrievedChunk).filter(
+        RetrievedChunk.session_id == request.session_id
+    ).delete()
+
+    for item in context_items:
+        db.add(RetrievedChunk(
+            session_id=request.session_id,
+            source=item["source"],
+            chunk_index=item["chunk"],
+            content=item["content"]
+        ))
+    db.commit()
+
     return {
         "response": assistant_response,
-        "sources": list(
-            {
-                item["source"]
-                for item in context_items
-            }
-        ),
+        "sources": sources_list,
         # full retrieved chunks - lets the frontend show WHAT text was
         # actually used to answer, not just which filenames it came from
         "retrieved_chunks": context_items
@@ -191,14 +217,53 @@ def documents():
 
 
 @app.get("/history/{session_id}")
-def get_chat_history(session_id: str):
+def get_chat_history(session_id: str, db: Session = Depends(get_db)):
     """
     Lets the frontend ask: 'what messages already exist for this
-    session?' - called once when the page loads, so a refresh can
-    redisplay past messages instead of showing a blank chat.
+    session, and what was the last retrieved context?' - called once
+    when the page loads, so a refresh can restore both the chat AND
+    the context panel instead of showing them blank.
+
+    Now reads from the database instead of in-memory dictionaries -
+    this means it survives a backend restart too.
     """
+    message_rows = (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.id.asc())
+        .all()
+    )
+
+    # convert database row objects into plain dicts, matching the
+    # exact shape the frontend already expects: {role, content, sources?}
+    history = [
+        {
+            "role": m.role,
+            "content": m.content,
+            "sources": m.sources  # will be None for user messages, a list for assistant ones
+        }
+        for m in message_rows
+    ]
+
+    context_rows = (
+        db.query(RetrievedChunk)
+        .filter(RetrievedChunk.session_id == session_id)
+        .order_by(RetrievedChunk.id.asc())
+        .all()
+    )
+
+    latest_context = [
+        {
+            "source": c.source,
+            "chunk": c.chunk_index,
+            "content": c.content
+        }
+        for c in context_rows
+    ]
+
     return {
-        "history": get_history(session_id)
+        "history": history,
+        "latest_context": latest_context
     }
 
 

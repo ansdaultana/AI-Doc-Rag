@@ -68,16 +68,16 @@ function App() {
 
   const restoreHistory = async () => {
     try {
-      console.log(sessionId);
       const res = await axios.get(`http://localhost:8000/history/${sessionId}`);
-      // backend stores history as [{role: "user", content: ...}, ...] -
+      // backend stores history as [{role, content, sources?}, ...] -
       // that's already the same shape our messages state uses, so we
-      // can drop it straight in. Note: sources aren't saved in backend
-      // history (only the raw role/content pairs), so restored
-      // assistant messages won't show their source tags - that's a
-      // known small limitation, not a bug.
+      // can drop it straight in, source tags included.
       if (res.data.history && res.data.history.length > 0) {
         setMessages(res.data.history);
+      }
+      // restore the context panel too, so a refresh doesn't wipe it
+      if (res.data.latest_context && res.data.latest_context.length > 0) {
+        setLatestChunks(res.data.latest_context);
       }
     } catch (err) {
       // no history yet for this session is expected on first-ever visit
@@ -167,7 +167,7 @@ function App() {
       <main className="chat-pane">
         <div className="chat-topbar">
           <span className="chat-topbar-label">
-            {selectedDocument ? selectedDocument : "All Documents"}
+            {selectedDocument ? selectedDocument : "all documents"}
           </span>
         </div>
 
