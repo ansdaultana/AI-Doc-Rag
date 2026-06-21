@@ -167,7 +167,7 @@ function App() {
       <main className="chat-pane">
         <div className="chat-topbar">
           <span className="chat-topbar-label">
-            {selectedDocument ? selectedDocument : "all documents"}
+            {selectedDocument ? selectedDocument : "All Documents"}
           </span>
         </div>
 

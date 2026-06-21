@@ -39,7 +39,7 @@ function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-logo">▸_</span>
-        <span className="sidebar-title">doc-assistant</span>
+        <span className="sidebar-title">Doc Assistant</span>
       </div>
 
       {/* hidden native file input, triggered by the styled button below */}
@@ -61,7 +61,7 @@ function Sidebar({
             <span className="spinner" /> indexing...
           </>
         ) : (
-          <>+ upload pdf</>
+          <>+ Upload PDF</>
         )}
       </button>
 
@@ -73,7 +73,7 @@ function Sidebar({
           onClick={() => onSelectDocument("")}
         >
           <span className="doc-icon">◆</span>
-          all documents
+          All Documents
         </button>
 
         {documents.length === 0 && (

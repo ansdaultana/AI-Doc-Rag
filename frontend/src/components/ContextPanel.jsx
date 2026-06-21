@@ -14,6 +14,7 @@ function ContextPanel({ chunks }) {
   return (
     <aside className="context-panel">
       <div className="context-panel-header">
+        <span className="sidebar-logo">▸_</span>
         <span className="context-panel-title">retrieved context</span>
         {chunks && chunks.length > 0 && (
           <span className="context-panel-count">{chunks.length}</span>
@@ -22,7 +23,7 @@ function ContextPanel({ chunks }) {
 
       {(!chunks || chunks.length === 0) && (
         <div className="context-empty">
-          <p>ask a question to see which document chunks the AI used to answer.</p>
+          <p>Ask a question to see which document chunks the AI used to answer!</p>
         </div>
       )}
 
