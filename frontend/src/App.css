@@ -44,6 +44,7 @@ body {
 
 .app-shell {
   display: flex;
+  width: 100%;
   height: 100vh;
   overflow: hidden;
 }
@@ -236,6 +237,7 @@ body {
   display: flex;
   gap: 12px;
   max-width: 80%;
+  align-self: flex-start;
 }
 
 .message-row.user {
@@ -397,6 +399,118 @@ button:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ---------------- Context panel (right side) ---------------- */
+
+.context-panel {
+  width: 340px;
+  max-width: 340px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.context-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.context-panel-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.context-panel-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+
+.context-empty {
+  padding: 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.context-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.context-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.context-card-arrow {
+  color: var(--accent);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.context-card-source {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.context-card-chunk {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.context-card-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  /* clamp long chunk text so cards don't grow huge - full text is
+     still there on hover via the title attribute pattern, but for
+     chunk previews a fixed clamp keeps the panel scannable */
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+  .context-panel {
+    display: none; /* hide on smaller screens to avoid cramming 3 columns */
+  }
 }
 
 /* Mobile */

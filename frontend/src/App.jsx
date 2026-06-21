@@ -3,7 +3,30 @@ import axios from "axios";
 import Sidebar from "./components/Sidebar";
 import ChatMessage from "./components/ChatMessage";
 import ChatInput from "./components/ChatInput";
+import ContextPanel from "./components/ContextPanel";
 import "./App.css";
+
+/**
+ * SESSION ID — created once, then REUSED across refreshes.
+ *
+ * Before: crypto.randomUUID() ran fresh every time the page loaded,
+ * so every refresh = a brand new session = backend forgets everything.
+ *
+ * Now: we check localStorage first (a small storage built into every
+ * browser that SURVIVES refreshes, unlike React state). If a session
+ * id is already saved there, reuse it. Only generate a new one the
+ * very first time this browser ever opens the app.
+ */
+function getOrCreateSessionId() {
+  const existing = localStorage.getItem("doc_assistant_session_id");
+  if (existing) return existing;
+
+  const fresh = crypto.randomUUID();
+  localStorage.setItem("doc_assistant_session_id", fresh);
+  return fresh;
+}
+
+const sessionId = getOrCreateSessionId();
 
 /**
  * App.jsx
@@ -21,6 +44,7 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState("");
+  const [latestChunks, setLatestChunks] = useState(null); // for the context panel
 
   // used to auto-scroll to the latest message
   const bottomRef = useRef(null);
@@ -28,6 +52,7 @@ function App() {
   // load the document list once when the app first mounts
   useEffect(() => {
     fetchDocuments();
+    restoreHistory();
   }, []);
 
   // auto-scroll whenever a new message is added
@@ -39,6 +64,25 @@ function App() {
     axios.get("http://localhost:8000/documents").then((res) => {
       setDocuments(res.data.documents);
     });
+  };
+
+  const restoreHistory = async () => {
+    try {
+      console.log(sessionId);
+      const res = await axios.get(`http://localhost:8000/history/${sessionId}`);
+      // backend stores history as [{role: "user", content: ...}, ...] -
+      // that's already the same shape our messages state uses, so we
+      // can drop it straight in. Note: sources aren't saved in backend
+      // history (only the raw role/content pairs), so restored
+      // assistant messages won't show their source tags - that's a
+      // known small limitation, not a bug.
+      if (res.data.history && res.data.history.length > 0) {
+        setMessages(res.data.history);
+      }
+    } catch (err) {
+      // no history yet for this session is expected on first-ever visit
+      console.log("no previous history to restore");
+    }
   };
 
   const handleUpload = async (file) => {
@@ -85,6 +129,7 @@ function App() {
       const res = await axios.post("http://localhost:8000/chat", {
         message: text,
         document: selectedDocument || null,
+        session_id: sessionId, // tells the backend which conversation this is
       });
 
       setMessages((prev) => [
@@ -95,6 +140,9 @@ function App() {
           sources: res.data.sources,
         },
       ]);
+
+      // update the context panel with what was retrieved for THIS answer
+      setLatestChunks(res.data.retrieved_chunks || []);
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -153,6 +201,8 @@ function App() {
 
         <ChatInput onSend={handleSend} loading={loading} />
       </main>
+
+      <ContextPanel chunks={latestChunks} />
     </div>
   );
 }
