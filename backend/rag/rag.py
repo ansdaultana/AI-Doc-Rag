@@ -1,6 +1,6 @@
-from embeddings import get_embedding  # question embedding
-from vector_store import search_chunks  # vector search
-from reranker import rerank  # cross-encoder re-ranking
+from rag.embeddings import get_embedding
+from rag.vector_store import search_chunks
+from rag.reranker import rerank
 
 # Threshold meaning now matches cosine DISTANCE (0 = identical, 2 = opposite).
 # 0.85 was likely tuned assuming cosine distance already - this becomes

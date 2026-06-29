@@ -1,7 +1,7 @@
-from pdf_utils import extract_text_from_pdf  # PDF → text
-from chunking import chunk_text  # text → chunks
-from embeddings import get_embedding  # text → vector
-from vector_store import add_chunks  # store vectors
+from ingestion.pdf_utils import extract_text_from_pdf
+from rag.chunking import chunk_text
+from rag.embeddings import get_embedding
+from rag.vector_store import add_chunks
 
 
 def ingest_document(file_path: str, doc_name: str):

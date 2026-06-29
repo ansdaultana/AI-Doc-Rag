@@ -5,9 +5,13 @@ from groq import Groq  # Groq client
 import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session  # type hint for a database session
-from ingestion import ingest_document  # document indexing
-from rag import retrieve_context  # retrieval pipeline
-from vector_store import get_documents
+from ingestion.pdf_utils import extract_text_from_pdf
+from rag.vector_store import get_documents
+from ingestion.ingestion import ingest_document
+from rag.chunking import chunk_text
+from rag.embeddings import get_embedding
+from rag.vector_store import add_chunks
+from rag.rag import retrieve_context
 from db.database import get_db  # gives us a database session per request
 from db.models import Message, RetrievedChunk  # our two database tables
 
@@ -85,14 +89,21 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     # STAGE 1: load this session's recent history from the DATABASE
     # instead of a dictionary. This is a real SQL query under the
     # hood, roughly: "SELECT * FROM messages WHERE session_id = ...
-    # ORDER BY created_at ASC". db.query(Message) is SQLAlchemy's way
+    # ORDER BY id DESC LIMIT 6". db.query(Message) is SQLAlchemy's way
     # of writing that without raw SQL text.
+    #
+    # We sort NEWEST first + LIMIT, so Postgres only sends us the rows
+    # we actually need (not the whole conversation history every time).
+    # Then we reverse back to oldest-first, since the LLM should read
+    # the conversation in the order it actually happened.
     history_rows = (
         db.query(Message)
         .filter(Message.session_id == request.session_id)
-        .order_by(Message.id.asc())
+        .order_by(Message.id.desc())
+        .limit(MAX_HISTORY_MESSAGES)
         .all()
     )
+    history_rows.reverse()
 
     # retrieve relevant chunks from vector DB (unchanged - this part
     # never touched the dictionaries, it's a separate pipeline)
@@ -134,13 +145,13 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     ]
 
     # add recent conversation memory FOR THIS SESSION ONLY.
-    # history_rows are database ROW objects, not plain dicts - we pull
-    # out just .role and .content, same defensive idea as before:
-    # Groq's API only wants "role" and "content" per message.
-    recent_history = history_rows[-MAX_HISTORY_MESSAGES:]
+    # history_rows are database ROW objects, not plain dicts, and are
+    # already limited to MAX_HISTORY_MESSAGES by the query above - we
+    # pull out just .role and .content, since Groq's API only wants
+    # those two fields per message.
     messages.extend(
         {"role": m.role, "content": m.content}
-        for m in recent_history
+        for m in history_rows
     )
 
     # add current context + question
