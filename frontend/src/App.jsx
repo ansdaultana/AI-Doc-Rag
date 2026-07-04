@@ -17,6 +17,9 @@ import "./App.css";
  * id is already saved there, reuse it. Only generate a new one the
  * very first time this browser ever opens the app.
  */
+
+const API_URL = import.meta.env.VITE_API_URL;
+
 function getOrCreateSessionId() {
   const existing = localStorage.getItem("doc_assistant_session_id");
   if (existing) return existing;
@@ -61,14 +64,14 @@ function App() {
   }, [messages, loading]);
 
   const fetchDocuments = () => {
-    axios.get("http://localhost:8000/documents").then((res) => {
+    axios.get(`${API_URL}/documents`).then((res) => {
       setDocuments(res.data.documents);
     });
   };
 
   const restoreHistory = async () => {
     try {
-      const res = await axios.get(`http://localhost:8000/history/${sessionId}`);
+      const res = await axios.get(`${API_URL}/history/${sessionId}`);
       // backend stores history as [{role, content, sources?}, ...] -
       // that's already the same shape our messages state uses, so we
       // can drop it straight in, source tags included.
@@ -91,7 +94,7 @@ function App() {
 
     setUploading(true);
     try {
-      const res = await axios.post("http://localhost:8000/upload", formData, {
+      const res = await axios.post(`${API_URL}/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -126,7 +129,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:8000/chat", {
+      const res = await axios.post(`${API_URL}/chat`, {
         message: text,
         document: selectedDocument || null,
         session_id: sessionId, // tells the backend which conversation this is

@@ -31,7 +31,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # into nginx's web root — the place nginx serves files from
 # everything else (node_modules, source code) gets left behind,
 # keeping this final container small
-
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 # start nginx and keep it running in the foreground
