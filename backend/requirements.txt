@@ -2,7 +2,11 @@ fastapi
 uvicorn
 python-multipart
 pypdf
-sentence-transformers
 chromadb
 groq
-torch
+sqlalchemy
+psycopg2-binary
+tiktoken
+langchain-text-splitters
+python-dotenv
+fastembed

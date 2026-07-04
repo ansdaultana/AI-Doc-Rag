@@ -1,0 +1,78 @@
+# docker-compose.yml
+#
+# WHAT THIS FILE DOES, SIMPLY:
+# --------------------------------
+# Defines all 3 containers (backend, frontend, postgres) and how they
+# connect to each other. One command - `docker compose up` - builds
+# and starts everything together, in the right order, wired correctly.
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: docassistant_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: docuser
+      POSTGRES_PASSWORD: docpassword
+      POSTGRES_DB: docassistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # ^ makes data SURVIVE container restarts - without this,
+      # stopping the container wipes the database every time.
+    healthcheck:
+      # Docker checks "is Postgres actually ready to accept
+      # connections yet?" before letting other containers depend on it.
+      test: ["CMD-SHELL", "pg_isready -U docuser -d docassistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: docassistant_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+        # ^ don't start the backend until Postgres is actually ready -
+        # otherwise the backend might try to connect before the
+        # database exists yet and crash.
+    environment:
+      # NOTE: "postgres" here is the SERVICE NAME above, not
+      # "localhost" - inside Docker's network, containers reach each
+      # other by service name, not by localhost or an IP address.
+      DATABASE_URL: "postgresql://docuser:docpassword@postgres:5432/docassistant"
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      # ^ this pulls GROQ_API_KEY from a .env file sitting next to
+      # this docker-compose.yml - keeps your real API key out of this
+      # file, which might get committed to git.
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/chroma_db:/app/chroma_db
+      # ^ these two folders get "mounted" from your real machine into
+      # the container - so uploaded PDFs and the vector database
+      # SURVIVE even if the container is rebuilt or restarted.
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: docassistant_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+      # ^ your browser hits localhost:5173, which forwards to port 80
+      # inside the frontend container (where nginx is serving the
+      # built React app).
+
+volumes:
+  postgres_data:

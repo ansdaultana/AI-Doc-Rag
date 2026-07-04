@@ -14,7 +14,12 @@ from rag.vector_store import add_chunks
 from rag.rag import retrieve_context
 from db.database import get_db  # gives us a database session per request
 from db.models import Message, RetrievedChunk  # our two database tables
+from db.database import engine, Base
+import db.models  # noqa: F401 — needed so SQLAlchemy sees the table definitions
 
+# create tables automatically on startup if they don't exist yet
+# safe to run every time — SQLAlchemy skips tables that already exist
+Base.metadata.create_all(bind=engine)
 
 load_dotenv()
 
