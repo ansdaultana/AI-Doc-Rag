@@ -283,8 +283,6 @@ def get_chat_history(session_id: str, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
-    return {
-        "message": "AI Documentation Assistant Running"
-    }
+    return {"message": "AI Documentation Assistant Running"}
