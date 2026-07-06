@@ -16,7 +16,7 @@ import { useRef } from "react";
  *   uploading        - true while an upload is in progress (shows a spinner state)
  */
 function Sidebar({
-  documents,
+  documents,  
   selectedDocument,
   onSelectDocument,
   onUpload,

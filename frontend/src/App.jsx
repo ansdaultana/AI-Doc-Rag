@@ -88,40 +88,41 @@ function App() {
     }
   };
 
-  const handleUpload = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
+const handleUpload = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
 
-    setUploading(true);
-    try {
-      const res = await axios.post(`${API_URL}/upload`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+  setUploading(true);
+  try {
+    const res = await axios.post(`${API_URL}/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      // refresh the sidebar's document list so the new file shows up
-      fetchDocuments();
+    // refresh the sidebar's document list so the new file shows up
+    fetchDocuments();
 
-      // drop a small system-style note into the chat confirming the upload
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `indexed "${file.name}" — ${res.data.chunks} chunks ready to search.`,
-        },
-      ]);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `upload failed for "${file.name}". check the backend logs.`,
-        },
-      ]);
-    } finally {
-      setUploading(false);
-    }
-  };
+    // drop a small system-style note into the chat confirming the upload
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `indexed "${file.name}" — ${res.data.chunks} chunks ready to search.`,
+      },
+    ]);
+  } catch (err) {
+    console.error(err);
+    const detail = err.response?.data?.detail || `upload failed for "${file.name}". check the backend logs.`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: detail,
+      },
+    ]);
+  } finally {
+    setUploading(false);
+  }
+};
 
   const handleSend = async (text) => {
     const userMessage = { role: "user", content: text };

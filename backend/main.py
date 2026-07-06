@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends  # FastAPI components
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware  # CORS support
 from pydantic import BaseModel  # request schema
 from groq import Groq  # Groq client
@@ -15,7 +15,6 @@ from rag.rag import retrieve_context
 from db.database import get_db  # gives us a database session per request
 from db.models import Message, RetrievedChunk  # our two database tables
 from db.database import engine, Base
-import db.models  # noqa: F401 — needed so SQLAlchemy sees the table definitions
 
 # create tables automatically on startup if they don't exist yet
 # safe to run every time — SQLAlchemy skips tables that already exist
@@ -68,25 +67,43 @@ class ChatRequest(BaseModel):
     session_id: str  # <-- NEW: identifies which conversation this belongs to
 
 
+# replace your existing /upload endpoint with this one
+
+
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
+
+
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    file_path = f"uploads/{file.filename}"  # save path
 
+    # check file type
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="only PDF files are supported."
+        )
+
+    # read file into memory first so we can check its size
+    contents = await file.read()
+
+    # check file size
+    if len(contents) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"file too large. maximum size is 10MB."
+        )
+
+    # save file to disk
+    file_path = f"uploads/{file.filename}"
     with open(file_path, "wb") as f:
-        f.write(await file.read())  # save uploaded file
+        f.write(contents)
 
-    chunk_count = ingest_document(
-        file_path,
-        file.filename
-    )  # index document
-
-    print("chunk_count", chunk_count)
+    chunk_count = ingest_document(file_path, file.filename)
 
     return {
         "message": "File uploaded and indexed successfully",
         "chunks": chunk_count
     }
-
 
 @app.post("/chat")
 def chat(request: ChatRequest, db: Session = Depends(get_db)):
