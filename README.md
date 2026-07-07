@@ -169,4 +169,5 @@ https://docassistant-frontend.onrender.com/
 
 Computer Science Graduate | Software Engineer
 
-GitHub: https://github.com/ansdaultana
+GitHub:   https://github.com/ansdaultana
+LinkedIn: https://www.linkedin.com/in/ans-nazir/
