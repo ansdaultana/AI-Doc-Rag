@@ -1,8 +1,10 @@
-# 📚 AI Documentation Assistant (RAG)
+# 📚 AI Documentation Assistant with Retrieval, Reranking & Groq LLM
 
-> A Retrieval-Augmented Generation (RAG) application that enables users to upload PDF documents and ask natural language questions. The assistant retrieves relevant document context using semantic search and generates accurate responses with Groq LLM.
+> An advanced Retrieval-Augmented Generation (RAG) application that enables users to upload PDF documents and ask natural language questions. The system combines semantic retrieval, cross-encoder reranking, and Groq LLM to deliver accurate, context-aware responses.
 
 🌐 **Live Demo:** https://docassistant-frontend.onrender.com/
+
+![AI Documentation Assistant](ScreenShots/image.png)
 
 ---
 
@@ -10,12 +12,13 @@
 
 - Upload and process PDF documents
 - Semantic search using vector embeddings
-- AI-powered question answering with Groq
+- Cross-encoder reranking for improved retrieval accuracy
+- AI-powered question answering with Groq LLM
 - Conversation history stored in PostgreSQL
 - FastAPI REST API
 - React + Vite frontend
-- Docker support for containerized deployment
-- Fully deployed on Render
+- Docker support
+- Deployed on Render
 
 ---
 
@@ -28,7 +31,7 @@
               Text Extraction
                      │
                      ▼
-             Chunking Documents
+             Document Chunking
                      │
                      ▼
           Generate Embeddings
@@ -36,11 +39,13 @@
                      ▼
                 ChromaDB
                      │
-                     ▼
-              Similarity Search
+             Initial Retrieval
                      │
                      ▼
-      Retrieved Context + User Query
+          Cross-Encoder Reranking
+                     │
+                     ▼
+      Top Ranked Context + User Query
                      │
                      ▼
                   Groq LLM
@@ -53,19 +58,19 @@
 
 ## ⚙️ Tech Stack
 
-| Category | Technologies |
-|----------|--------------|
-| Backend | FastAPI, Python |
-| Frontend | React, Vite |
-| Vector Database | ChromaDB |
-| LLM | Groq API |
-| Embeddings | FastEmbed |
-| Database | PostgreSQL |
-| PDF Processing | PyPDF |
-| Chunking | LangChain Text Splitters |
-| ORM | SQLAlchemy |
-| Containerization | Docker, Docker Compose |
-| Deployment | Render |
+| Category         | Technologies                         |
+| ---------------- | ------------------------------------ |
+| Backend          | FastAPI, Python                      |
+| Frontend         | React, Vite                          |
+| Vector Database  | ChromaDB                             |
+| Embeddings       | FastEmbed                            |
+| Reranking        | CrossEncoder (Sentence Transformers) |
+| LLM              | Groq                                 |
+| Database         | PostgreSQL                           |
+| PDF Processing   | PyPDF                                |
+| Deployment       | Render                               |
+| Containerization | Docker                               |
+
 
 ---
 
@@ -93,13 +98,14 @@ AI-Doc-Rag/
 
 1. Upload a PDF document.
 2. Extract text from the document.
-3. Split text into smaller chunks.
-4. Generate vector embeddings using FastEmbed.
+3. Split the text into manageable chunks.
+4. Generate embeddings using FastEmbed.
 5. Store embeddings in ChromaDB.
 6. User submits a question.
-7. Retrieve the most relevant document chunks.
-8. Send the retrieved context and user query to Groq LLM.
-9. Return an AI-generated response.
+7. Retrieve the most relevant document chunks using semantic similarity.
+8. Rerank the retrieved chunks with a Cross-Encoder model to improve relevance.
+9. Send the top-ranked context and user query to the Groq LLM.
+10. Generate and return the final answer.
 
 ---
 
@@ -110,6 +116,7 @@ AI-Doc-Rag/
 | FastAPI | REST API framework |
 | ChromaDB | Vector database |
 | FastEmbed | Embedding generation |
+| sentence-transformers | Cross-Encoder reranking of retrieved chunks |
 | Groq | Large Language Model inference |
 | PyPDF | PDF text extraction |
 | SQLAlchemy | Database ORM |
@@ -117,6 +124,7 @@ AI-Doc-Rag/
 | LangChain Text Splitters | Document chunking |
 | tiktoken | Token counting |
 | python-dotenv | Environment variable management |
+
 
 ---
 
