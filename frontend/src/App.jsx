@@ -5,7 +5,7 @@ import ChatMessage from "./components/ChatMessage";
 import ChatInput from "./components/ChatInput";
 import ContextPanel from "./components/ContextPanel";
 import "./App.css";
-
+import TypingIndicator from "./components/TypingIndicator";
 /**
  * SESSION ID — created once, then REUSED across refreshes.
  *
@@ -171,7 +171,7 @@ const handleUpload = async (file) => {
       <main className="chat-pane">
         <div className="chat-topbar">
           <span className="chat-topbar-label">
-            {selectedDocument ? selectedDocument : "all documents"}
+            {selectedDocument ? selectedDocument : "All Documents"}
           </span>
         </div>
 
@@ -195,9 +195,7 @@ const handleUpload = async (file) => {
               />
             ))}
 
-            {loading && (
-              <ChatMessage role="assistant" content="thinking..." />
-            )}
+            {loading && <TypingIndicator />}
 
             <div ref={bottomRef} />
           </div>

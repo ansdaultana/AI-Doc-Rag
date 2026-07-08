@@ -33,7 +33,7 @@ function ChatInput({ onSend, loading }) {
       <textarea
         className="chat-input"
         rows={1}
-        placeholder="ask something about your documents..."
+        placeholder="Ask Something about your Documents..."
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={handleKeyDown}
