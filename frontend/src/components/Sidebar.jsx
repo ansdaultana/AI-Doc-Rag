@@ -1,48 +1,44 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
-/**
- * Sidebar.jsx
- * ------------
- * Shows the list of uploaded documents (like a file tree) and the
- * upload control. This is a SEPARATE component from App.jsx so each
- * file has one clear job - Sidebar only cares about documents and
- * uploading, it doesn't know anything about chat messages.
- *
- * Props (data passed in from the parent component, App.jsx):
- *   documents        - array of filenames already uploaded
- *   selectedDocument - the filename currently selected as a filter ("" = all)
- *   onSelectDocument - function to call when the user picks a different doc
- *   onUpload         - function to call with the chosen file when "Upload" is clicked
- *   uploading        - true while an upload is in progress (shows a spinner state)
- */
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 function Sidebar({
-  documents,  
+  documents,
   selectedDocument,
   onSelectDocument,
   onUpload,
   uploading,
+  isOpen,
+  onClose,
 }) {
-  // a ref lets us click a hidden <input type="file"> programmatically
-  // when the user clicks our custom-styled "Upload" button
   const fileInputRef = useRef(null);
+  const [uploadError, setUploadError] = useState(null);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      onUpload(file);
-    }
-    // reset so the same file can be re-selected later if needed
     e.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setUploadError("only PDF files are supported.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setUploadError(`file is too large. maximum size is ${MAX_FILE_SIZE_MB}MB.`);
+      return;
+    }
+    setUploadError(null);
+    onUpload(file);
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? "sidebar--open" : ""}`}>
       <div className="sidebar-header">
         <span className="sidebar-logo">▸_</span>
         <span className="sidebar-title">Doc Assistant</span>
+        <button className="sidebar-close-btn" onClick={onClose}>✕</button>
       </div>
 
-      {/* hidden native file input, triggered by the styled button below */}
       <input
         ref={fileInputRef}
         type="file"
@@ -53,17 +49,13 @@ function Sidebar({
 
       <button
         className="upload-btn"
-        onClick={() => fileInputRef.current.click()}
+        onClick={() => { setUploadError(null); fileInputRef.current.click(); }}
         disabled={uploading}
       >
-        {uploading ? (
-          <>
-            <span className="spinner" /> indexing...
-          </>
-        ) : (
-          <>+ Upload PDF</>
-        )}
+        {uploading ? <><span className="spinner" /> indexing...</> : <>+ Upload PDF</>}
       </button>
+
+      {uploadError && <div className="upload-error">{uploadError}</div>}
 
       <div className="sidebar-section-label">documents</div>
 
@@ -76,9 +68,7 @@ function Sidebar({
           All Documents
         </button>
 
-        {documents.length === 0 && (
-          <div className="doc-empty">no documents yet</div>
-        )}
+        {documents.length === 0 && <div className="doc-empty">no documents yet</div>}
 
         {documents.map((doc) => (
           <button

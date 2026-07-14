@@ -19,7 +19,6 @@ import TypingIndicator from "./components/TypingIndicator";
  */
 
 const API_URL = import.meta.env.VITE_API_URL;
-
 function getOrCreateSessionId() {
   const existing = localStorage.getItem("doc_assistant_session_id");
   if (existing) return existing;
@@ -48,6 +47,7 @@ function App() {
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState("");
   const [latestChunks, setLatestChunks] = useState(null); // for the context panel
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // used to auto-scroll to the latest message
   const bottomRef = useRef(null);
@@ -158,18 +158,40 @@ const handleUpload = async (file) => {
     }
   };
 
-  return (
+return (
     <div className="app-shell">
+
+      {/* overlay — clicking it closes the sidebar on mobile */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <Sidebar
         documents={documents}
         selectedDocument={selectedDocument}
-        onSelectDocument={setSelectedDocument}
+        onSelectDocument={(doc) => {
+          setSelectedDocument(doc);
+          setSidebarOpen(false); // close sidebar after picking a doc on mobile
+        }}
         onUpload={handleUpload}
         uploading={uploading}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <main className="chat-pane">
         <div className="chat-topbar">
+          {/* hamburger button — only visible on mobile */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            aria-label="toggle sidebar"
+          >
+            ☰
+          </button>
           <span className="chat-topbar-label">
             {selectedDocument ? selectedDocument : "All Documents"}
           </span>

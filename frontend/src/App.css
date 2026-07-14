@@ -52,7 +52,8 @@ body {
 /* ---------------- Sidebar ---------------- */
 
 .sidebar {
-  width: 260px;
+  width: 85%;
+  max-width: 320px;
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -199,6 +200,10 @@ body {
   align-items: center;
   padding: 0 20px;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
 }
 
 .chat-topbar-label {
@@ -524,19 +529,7 @@ textarea:focus-visible {
   }
 }
 
-/* Mobile */
-@media (max-width: 720px) {
-  .app-shell {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    height: auto;
-    max-height: 200px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
+
 
 /* ---------------- Typing indicator ---------------- */
 
@@ -587,4 +580,112 @@ textarea:focus-visible {
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+/* ====================================================
+   MOBILE STYLES — replace your existing mobile
+   @media block at the bottom of App.css with this
+   ==================================================== */
+
+/* hamburger button — hidden on desktop, visible on mobile */
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-right: 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.hamburger-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* close button inside sidebar — hidden on desktop */
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: auto;
+  border-radius: 4px;
+}
+
+.sidebar-close-btn:hover {
+  color: var(--text);
+}
+
+/* dark overlay behind the open sidebar on mobile */
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .context-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  /* show hamburger and close buttons on mobile */
+  .hamburger-btn {
+    display: block;
+  }
+
+  .sidebar-close-btn {
+    display: block;
+  }
+
+  /* overlay — shown when sidebar is open */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10;
+  }
+
+  /* sidebar slides in from the left as an overlay */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 280px;
+    z-index: 20;
+    transform: translateX(-100%);   /* hidden off-screen by default */
+    transition: transform 0.25s ease;
+    border-right: 1px solid var(--border);
+  }
+
+  /* when open, slide into view */
+  .sidebar.sidebar--open {
+    transform: translateX(0);
+  }
+
+  /* chat pane takes full width on mobile */
+  .chat-pane {
+    width: 100%;
+  }
+
+  /* slightly smaller padding on mobile */
+  .chat-scroll {
+    padding: 16px;
+  }
+
+  .chat-input-bar {
+    padding: 12px 16px;
+  }
+
+  /* messages can be wider on small screens */
+  .message-row {
+    max-width: 92%;
+  }
 }
